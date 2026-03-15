@@ -838,6 +838,41 @@ async function detectLocation() {
   }
 }
 
+// ======== USD→INR — Try multiple free APIs ========
+async function getUsdToInr() {
+  // Try 3 different free FX APIs in order
+  const FX_APIS = [
+    {
+      url: 'https://api.exchangerate-api.com/v4/latest/USD',
+      parse: d => d?.rates?.INR
+    },
+    {
+      url: 'https://open.er-api.com/v6/latest/USD',
+      parse: d => d?.rates?.INR
+    },
+    {
+      url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json',
+      parse: d => d?.usd?.inr
+    }
+  ];
+
+  for (const api of FX_APIS) {
+    try {
+      const res = await fetch(api.url, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const data = await res.json();
+        const rate = parseFloat(api.parse(data));
+        if (rate > 70 && rate < 110) {   // sanity check — INR is always 70-110 per USD
+          return rate;
+        }
+      }
+    } catch(e) {
+      // try next
+    }
+  }
+  return 84;  // hardcoded fallback if all APIs fail
+}
+
 // ======== RATES — Real Working APIs ========
 async function fetchRates() {
   updateRateUI('goldRate', '<span class="loading-spinner"></span>');
@@ -847,67 +882,36 @@ async function fetchRates() {
   let fetchSuccess = false;
 
   try {
-    // Strategy: gold-api.com (free, no key) + open.er-api.com (free USD→INR)
-    // gold-api.com gives XAU (gold) and XAG (silver) in USD per troy oz
-
+    // Step 1: Fetch gold + silver USD prices (gold-api.com — confirmed working)
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 7000);
 
-    const [goldRes, silverRes, fxRes] = await Promise.all([
+    const [goldRes, silverRes] = await Promise.all([
       fetch('https://api.gold-api.com/price/XAU', { signal: controller.signal }),
-      fetch('https://api.gold-api.com/price/XAG', { signal: controller.signal }),
-      fetch('https://open.er-api.com/v6/latest/USD', { signal: controller.signal })
+      fetch('https://api.gold-api.com/price/XAG', { signal: controller.signal })
     ]);
-
     clearTimeout(timeout);
 
-    if (goldRes.ok && silverRes.ok && fxRes.ok) {
+    if (goldRes.ok && silverRes.ok) {
       const goldData = await goldRes.json();
       const silverData = await silverRes.json();
-      const fxData = await fxRes.json();
 
-      const usdToInr = fxData?.rates?.INR || 84;          // fallback 84
-      const goldUsdPerOz = goldData?.price || 0;           // USD per troy oz
-      const silverUsdPerOz = silverData?.price || 0;       // USD per troy oz
+      const goldUsdPerOz  = parseFloat(goldData?.price  || 0);
+      const silverUsdPerOz = parseFloat(silverData?.price || 0);
 
-      if (goldUsdPerOz > 1000 && usdToInr > 50) {
-        // Convert: USD/troy-oz → INR/gram → 22K adjustment
+      // Step 2: Get USD→INR separately with multiple fallbacks
+      const usdToInr = await getUsdToInr();
+
+      if (goldUsdPerOz > 1000 && silverUsdPerOz > 10 && usdToInr > 70) {
+        // USD/troy-oz → INR/gram
         const gold24KPerGram = (goldUsdPerOz * usdToInr) / TROY_OZ_TO_GRAM;
-        goldRate = Math.round(gold24KPerGram * 0.9167);    // 24K → 22K
-
-        // Silver: USD/troy-oz → INR/gram
+        goldRate   = Math.round(gold24KPerGram * 0.9167);          // 24K → 22K
         silverRate = Math.round((silverUsdPerOz * usdToInr) / TROY_OZ_TO_GRAM);
-
         fetchSuccess = true;
       }
     }
   } catch(e) {
-    // Try fallback API — exchangerate.host (no key needed)
-    try {
-      const res2 = await fetch(
-        'https://api.exchangerate.host/live?access_key=&currencies=XAU,XAG,INR&source=USD',
-        { signal: AbortSignal.timeout(5000) }
-      );
-      if (res2.ok) {
-        const d2 = await res2.json();
-        const usdToInr = d2?.quotes?.USDINR || 84;
-        const usdToXAU = d2?.quotes?.USDXAU || 0;   // XAU = oz of gold per USD
-        const usdToXAG = d2?.quotes?.USDXAG || 0;
-
-        if (usdToXAU > 0 && usdToInr > 50) {
-          // USDXAU means: 1 USD = usdToXAU oz of gold → 1 oz = 1/usdToXAU USD
-          const goldUsdPerOz = 1 / usdToXAU;
-          const silverUsdPerOz = 1 / usdToXAG;
-
-          const gold24KPerGram = (goldUsdPerOz * usdToInr) / TROY_OZ_TO_GRAM;
-          goldRate = Math.round(gold24KPerGram * 0.9167);
-          silverRate = Math.round((silverUsdPerOz * usdToInr) / TROY_OZ_TO_GRAM);
-          fetchSuccess = true;
-        }
-      }
-    } catch(e2) {
-      // Both APIs failed — use updated fallback rates (already set at top)
-    }
+    // gold-api.com bhi fail hua — fallback rates use honge (set at top)
   }
 
   // ---- UPDATE UI ----

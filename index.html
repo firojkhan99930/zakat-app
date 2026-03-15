@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="hi" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a6b3c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zakat Guide">
+<title>📿 Zakat Guide & Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #1a6b3c;
+    --green-light: #2d9b5a;
+    --green-pale: #e8f5ee;
+    --gold: #c8963e;
+    --gold-light: #f0c96e;
+    --silver: #7b8fa1;
+    --bg: #f4f7f5;
+    --card: #ffffff;
+    --text: #1a2e22;
+    --text-muted: #5a7a65;
+    --border: #d0e4d8;
+    --input-bg: #f0f7f3;
+    --shadow: 0 4px 24px rgba(26,107,60,0.10);
+    --radius: 18px;
+    --tab-active: #1a6b3c;
+    --tab-inactive: #a0b8a8;
+    --danger: #c0392b;
+    --success: #1a6b3c;
+    --warning: #c8963e;
+  }
+  [data-theme="dark"] {
+    --green: #2d9b5a;
+    --green-light: #3dbc6e;
+    --green-pale: #1a2e22;
+    --gold: #f0c96e;
+    --gold-light: #f7dc9a;
+    --silver: #a0b8c8;
+    --bg: #0f1c14;
+    --card: #182419;
+    --text: #e8f5ee;
+    --text-muted: #7aab85;
+    --border: #2a4a32;
+    --input-bg: #1e3024;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --tab-active: #2d9b5a;
+    --tab-inactive: #3a5a42;
+    --danger: #e74c3c;
+    --success: #2d9b5a;
+    --warning: #f0c96e;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Nunito',sans-serif; overflow:hidden; }
+
+  /* APP SHELL */
+  .app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, var(--green) 0%, var(--green-light) 100%);
+    padding: 14px 18px 10px;
+    display: flex; align-items:center; justify-content:space-between;
+    box-shadow: 0 2px 12px rgba(26,107,60,0.3);
+    position:relative; z-index:10;
+    flex-shrink:0;
+  }
+  .header-title { display:flex; align-items:center; gap:10px; }
+  .header-title .icon { font-size:26px; }
+  .header-title h1 { font-family:'Amiri',serif; font-size:20px; color:#fff; font-weight:700; line-height:1.2; }
+  .header-title p { font-size:11px; color:rgba(255,255,255,0.75); }
+  .header-actions { display:flex; gap:10px; align-items:center; }
+  .btn-icon {
+    width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
+    background:rgba(255,255,255,0.15); color:#fff; font-size:16px;
+    display:flex; align-items:center; justify-content:center;
+    transition:background 0.2s;
+  }
+  .btn-icon:active { background:rgba(255,255,255,0.3); }
+
+  /* RATE BANNER */
+  .rate-banner {
+    background: var(--card); border-bottom:1px solid var(--border);
+    padding: 8px 16px; display:flex; gap:12px; align-items:center;
+    overflow-x:auto; scrollbar-width:none; flex-shrink:0;
+  }
+  .rate-banner::-webkit-scrollbar { display:none; }
+  .rate-chip {
+    display:flex; align-items:center; gap:6px; white-space:nowrap;
+    background:var(--input-bg); border-radius:20px; padding:5px 12px;
+    font-size:12px; font-weight:700; flex-shrink:0;
+  }
+  .rate-chip .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .rate-chip.gold-chip .dot { background:var(--gold); }
+  .rate-chip.silver-chip .dot { background:var(--silver); }
+  .rate-chip.nisab-chip .dot { background:var(--green); }
+  .rate-chip .val { color:var(--green); }
+  .rate-chip.loading .val { color:var(--text-muted); }
+  .rate-refresh { margin-left:auto; flex-shrink:0; background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:16px; padding:4px; }
+
+  /* SCROLL AREA */
+  .scroll-area { flex:1; overflow-y:auto; overflow-x:hidden; padding:0 0 80px; }
+  .scroll-area::-webkit-scrollbar { width:0; }
+
+  /* PAGES */
+  .page { display:none; animation:fadeIn 0.25s ease; }
+  .page.active { display:block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position:fixed; bottom:0; left:0; right:0;
+    background:var(--card); border-top:1px solid var(--border);
+    display:flex; z-index:20; box-shadow:0 -2px 16px rgba(0,0,0,0.08);
+    flex-shrink:0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .nav-item {
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:10px 4px 8px; border:none; background:none; cursor:pointer; gap:4px;
+    color:var(--tab-inactive); transition:color 0.2s;
+    font-family:'Nunito',sans-serif;
+  }
+  .nav-item.active { color:var(--tab-active); }
+  .nav-item .nav-icon { font-size:20px; }
+  .nav-item .nav-label { font-size:10px; font-weight:700; letter-spacing:0.3px; }
+  .nav-item.active .nav-icon { transform:translateY(-2px); transition:transform 0.2s; }
+
+  /* SECTION CARDS */
+  .section-card {
+    background:var(--card); border-radius:var(--radius); margin:14px 14px 0;
+    box-shadow:var(--shadow); overflow:hidden; border:1px solid var(--border);
+  }
+  .section-header {
+    padding:14px 16px 10px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px;
+  }
+  .section-header .s-icon { font-size:20px; }
+  .section-header h2 { font-size:15px; font-weight:800; color:var(--text); }
+  .section-header p { font-size:11px; color:var(--text-muted); margin-top:1px; }
+  .section-body { padding:14px 16px; }
+
+  /* INFO GUIDE PAGE */
+  .guide-intro {
+    margin:14px; background:linear-gradient(135deg,var(--green) 0%,var(--green-light) 100%);
+    border-radius:var(--radius); padding:18px; color:#fff; text-align:center;
+  }
+  .guide-intro .arabic { font-family:'Amiri',serif; font-size:22px; line-height:1.6; margin-bottom:8px; }
+  .guide-intro p { font-size:12px; opacity:0.85; }
+
+  .nisab-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .nisab-table th { background:var(--green-pale); color:var(--green); font-weight:800; padding:8px 10px; text-align:left; font-size:12px; }
+  .nisab-table td { padding:9px 10px; border-bottom:1px solid var(--border); }
+  .nisab-table tr:last-child td { border-bottom:none; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; }
+  .badge-green { background:var(--green-pale); color:var(--green); }
+  .badge-gold { background:#fef6e4; color:var(--gold); }
+  .badge-red { background:#fdecea; color:var(--danger); }
+
+  .cat-item { display:flex; gap:12px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--border); }
+  .cat-item:last-child { border-bottom:none; }
+  .cat-icon { width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  .cat-icon.green { background:var(--green-pale); }
+  .cat-icon.gold { background:#fef6e4; }
+  .cat-icon.blue { background:#e8f0fe; }
+  .cat-icon.red { background:#fdecea; }
+  .cat-info h3 { font-size:13px; font-weight:800; margin-bottom:3px; }
+  .cat-info p { font-size:12px; color:var(--text-muted); line-height:1.5; }
+
+  .example-card {
+    border-radius:12px; padding:12px 14px; margin-bottom:10px;
+    border-left:4px solid;
+  }
+  .example-card.yes { background:var(--green-pale); border-color:var(--green); }
+  .example-card.no { background:#fdecea; border-color:var(--danger); }
+  .example-card h4 { font-size:13px; font-weight:800; margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+  .example-card p { font-size:12px; color:var(--text-muted); line-height:1.5; }
+  .example-card .result { font-size:12px; font-weight:700; margin-top:6px; }
+  .example-card.yes .result { color:var(--green); }
+  .example-card.no .result { color:var(--danger); }
+
+  /* CALCULATOR PAGE */
+  .calc-label { font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:6px; display:block; text-transform:uppercase; letter-spacing:0.5px; }
+  .input-row { display:flex; gap:10px; align-items:stretch; margin-bottom:14px; }
+  .input-field {
+    flex:1; background:var(--input-bg); border:1.5px solid var(--border); border-radius:12px;
+    padding:12px 14px; font-size:15px; font-family:'Nunito',sans-serif; font-weight:700;
+    color:var(--text); outline:none; width:100%; transition:border-color 0.2s;
+  }
+  .input-field:focus { border-color:var(--green); }
+  .input-field::placeholder { color:var(--text-muted); font-weight:400; }
+  .input-unit {
+    background:var(--green-pale); border:1.5px solid var(--border); border-radius:12px;
+    padding:0 14px; display:flex; align-items:center; font-size:13px; font-weight:800;
+    color:var(--green); white-space:nowrap; flex-shrink:0;
+  }
+  .auto-fill-btn {
+    background:var(--gold); border:none; border-radius:10px; padding:6px 12px;
+    font-size:11px; font-weight:800; color:#fff; cursor:pointer; flex-shrink:0;
+    display:flex; align-items:center; gap:4px;
+  }
+  .auto-fill-btn:active { opacity:0.8; }
+  .divider { height:1px; background:var(--border); margin:6px 0 14px; }
+  .calc-btn {
+    width:100%; padding:16px; border:none; border-radius:14px; cursor:pointer;
+    font-size:16px; font-weight:800; font-family:'Nunito',sans-serif;
+    background:linear-gradient(135deg,var(--green),var(--green-light));
+    color:#fff; box-shadow:0 4px 16px rgba(26,107,60,0.3);
+    transition:transform 0.15s, box-shadow 0.15s;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .calc-btn:active { transform:scale(0.97); box-shadow:0 2px 8px rgba(26,107,60,0.2); }
+  .reset-btn {
+    width:100%; padding:12px; border:2px solid var(--border); border-radius:14px; cursor:pointer;
+    font-size:14px; font-weight:700; font-family:'Nunito',sans-serif;
+    background:transparent; color:var(--text-muted); margin-top:10px;
+  }
+  .reset-btn:active { background:var(--input-bg); }
+
+  /* RESULT CARD */
+  .result-card {
+    border-radius:var(--radius); padding:20px; text-align:center; margin-top:14px;
+    border:2px solid; animation:popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes popIn { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+  .result-card.farz { background:var(--green-pale); border-color:var(--green); }
+  .result-card.nahi { background:#fdecea; border-color:var(--danger); }
+  .result-card .r-emoji { font-size:36px; margin-bottom:8px; }
+  .result-card .r-title { font-size:18px; font-weight:800; margin-bottom:4px; }
+  .result-card.farz .r-title { color:var(--green); }
+  .result-card.nahi .r-title { color:var(--danger); }
+  .result-card .r-amount { font-size:30px; font-weight:800; color:var(--green); margin:10px 0 4px; }
+  .result-card .r-sub { font-size:12px; color:var(--text-muted); }
+  .result-card .r-breakdown { margin-top:14px; text-align:left; background:var(--card); border-radius:10px; padding:12px; }
+  .result-card .r-breakdown .row { display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid var(--border); }
+  .result-card .r-breakdown .row:last-child { border-bottom:none; font-weight:800; font-size:13px; }
+  .result-card .r-arabic { font-family:'Amiri',serif; font-size:18px; color:var(--green); margin-top:12px; display:block; }
+
+  /* NISAB CHECKER */
+  .checker-card {
+    border-radius:14px; padding:14px; border:2px solid var(--border); margin-bottom:10px;
+    cursor:pointer; transition:border-color 0.2s, background 0.2s;
+  }
+  .checker-card.selected { border-color:var(--green); background:var(--green-pale); }
+  .checker-card .ch-top { display:flex; align-items:center; justify-content:space-between; }
+  .checker-card .ch-title { font-size:14px; font-weight:800; display:flex; align-items:center; gap:8px; }
+  .checker-card .ch-radio { width:20px; height:20px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; }
+  .checker-card.selected .ch-radio { border-color:var(--green); background:var(--green); }
+  .checker-card .ch-body { font-size:12px; color:var(--text-muted); margin-top:6px; line-height:1.5; }
+  .nisab-result {
+    border-radius:14px; padding:16px; text-align:center; margin-top:14px;
+    animation:popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .nisab-result.farz { background:var(--green-pale); border:2px solid var(--green); }
+  .nisab-result.nahi { background:#fdecea; border:2px solid var(--danger); }
+  .nisab-result h3 { font-size:16px; font-weight:800; margin-bottom:6px; }
+  .nisab-result.farz h3 { color:var(--green); }
+  .nisab-result.nahi h3 { color:var(--danger); }
+  .nisab-result p { font-size:12px; color:var(--text-muted); line-height:1.5; }
+
+  /* SETTINGS */
+  .setting-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:1px solid var(--border);
+  }
+  .setting-row:last-child { border-bottom:none; }
+  .setting-info { display:flex; align-items:center; gap:12px; }
+  .setting-icon { font-size:20px; }
+  .setting-text h3 { font-size:14px; font-weight:700; }
+  .setting-text p { font-size:11px; color:var(--text-muted); margin-top:1px; }
+  .toggle {
+    width:48px; height:26px; background:var(--border); border-radius:13px;
+    cursor:pointer; position:relative; transition:background 0.3s; border:none; flex-shrink:0;
+  }
+  .toggle.on { background:var(--green); }
+  .toggle::after {
+    content:''; position:absolute; width:20px; height:20px; background:#fff;
+    border-radius:50%; top:3px; left:3px; transition:transform 0.3s;
+    box-shadow:0 1px 4px rgba(0,0,0,0.2);
+  }
+  .toggle.on::after { transform:translateX(22px); }
+  .select-field {
+    background:var(--input-bg); border:1.5px solid var(--border); border-radius:10px;
+    padding:7px 12px; font-size:13px; font-family:'Nunito',sans-serif; font-weight:700;
+    color:var(--text); outline:none; cursor:pointer;
+  }
+
+  /* UTILITY */
+  .page-pad { padding:0 0 14px; }
+  .text-center { text-align:center; }
+  .mt-10 { margin-top:10px; }
+  .mt-14 { margin-top:14px; }
+  .small-note { font-size:11px; color:var(--text-muted); text-align:center; padding:10px 16px; line-height:1.6; }
+  .loading-spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border); border-top-color:var(--green); border-radius:50%; animation:spin 0.7s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .step-list { counter-reset:step; }
+  .step-item { display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); align-items:flex-start; }
+  .step-item:last-child { border-bottom:none; }
+  .step-num { width:26px; height:26px; border-radius:50%; background:var(--green); color:#fff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .step-text { font-size:13px; line-height:1.5; flex:1; }
+  .step-text strong { color:var(--green); }
+  .formula-box { background:var(--input-bg); border-radius:12px; padding:14px; text-align:center; border:2px dashed var(--border); }
+  .formula-box .formula { font-size:18px; font-weight:800; color:var(--green); }
+  .formula-box .formula-sub { font-size:11px; color:var(--text-muted); margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-title">
+      <span class="icon">📿</span>
+      <div>
+        <h1>Zakat Guide</h1>
+        <p>Calculator & Information</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-icon" onclick="toggleTheme()" title="Theme">🌙</button>
+    </div>
+  </div>
+
+  <!-- RATE BANNER -->
+  <div class="rate-banner" id="rateBanner">
+    <div class="rate-chip gold-chip loading" id="goldChip">
+      <div class="dot"></div>
+      <span>Gold 22K:</span>
+      <span class="val" id="goldRate"><span class="loading-spinner"></span></span>
+    </div>
+    <div class="rate-chip silver-chip loading" id="silverChip">
+      <div class="dot"></div>
+      <span>Silver:</span>
+      <span class="val" id="silverRate"><span class="loading-spinner"></span></span>
+    </div>
+    <div class="rate-chip nisab-chip loading" id="nisabChip">
+      <div class="dot"></div>
+      <span>Nisab:</span>
+      <span class="val" id="nisabRate"><span class="loading-spinner"></span></span>
+    </div>
+    <button class="rate-refresh" onclick="fetchRates()" title="Refresh">🔄</button>
+  </div>
+
+  <!-- SCROLL AREA -->
+  <div class="scroll-area" id="scrollArea">
+
+    <!-- PAGE: GUIDE -->
+    <div class="page active" id="page-guide">
+      <div class="guide-intro">
+        <div class="arabic">وَأَقِيمُوا الصَّلَاةَ وَآتُوا الزَّكَاةَ</div>
+        <p>Namaaz qaim karo aur Zakat ada karo — (Quran 2:43)</p>
+      </div>
+
+      <!-- NISAB -->
+      <div class="section-card">
+        <div class="section-header">
+          <span class="s-icon">⚖️</span>
+          <div>
+            <h2>Nisab Kya Hota Hai?</h2>
+            <p>Minimum limit jiske baad Zakat farz hoti hai</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <table class="nisab-table">
+            <tr>
+              <th>Cheez</th><th>Tola</th><th>Gram</th><th>Rate</th>
+            </tr>
+            <tr>
+              <td>🥇 Sona</td><td><strong>7.5</strong></td><td>87.48g</td>
+              <td><span class="badge badge-gold" id="goldNisabVal">Loading...</span></td>
+            </tr>
+            <tr>
+              <td>🥈 Chandi</td><td><strong>52.5</strong></td><td>612.36g</td>
+              <td><span class="badge badge-green" id="silverNisabVal">Loading...</span></td>
+            </tr>
+          </table>
+          <p class="small-note">⚠️ Aaj ke daur mein zyada ulema <strong>Chandi ka Nisab</strong> use karne ki salah dete hain — ye zyada log par laagu hoti hai.</p>
+        </div>
+      </div>
+
+      <!-- 4 CATEGORIES -->
+      <div class="section-card mt-14">
+        <div class="section-header">
+          <span class="s-icon">📦</span>
+          <div>
+            <h2>Zakat Kis Maal Par?</h2>
+            <p>4 main categories</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="cat-item">
+            <div class="cat-icon gold">🥇</div>
+            <div class="cat-info">
+              <h3>Sona (Gold)</h3>
+              <p>7.5 tola (87.48g) ya zyada gold ho aur 1 saal guzar gaya ho.</p>
+            </div>
+          </div>
+          <div class="cat-item">
+            <div class="cat-icon green">🥈</div>
+            <div class="cat-info">
+              <h3>Chandi (Silver)</h3>
+              <p>52.5 tola (612.36g) ya zyada chandi ho aur 1 saal guzar gaya ho.</p>
+            </div>
+          </div>
+          <div class="cat-item">
+            <div class="cat-icon blue">💵</div>
+            <div class="cat-info">
+              <h3>Cash / Bank / Udhar</h3>
+              <p>Ghar ka cash + bank balance + jo udhar diya ho (wapas milne ki umeed ho) — sab milake 52.5 tola chandi ki value ke barabar ya zyada ho.</p>
+            </div>
+          </div>
+          <div class="cat-item">
+            <div class="cat-icon red">🏠</div>
+            <div class="cat-info">
+              <h3>Property / Vehicle / Business</h3>
+              <p>Sirf wo property/vehicle jo <strong>sale ya munafe ke liye</strong> rakhi ho. Rehne wala ghar aur personal gaadi par <strong>zakat nahi lagti — inhe chhhod do</strong>.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORMULA -->
+      <div class="section-card mt-14">
+        <div class="section-header">
+          <span class="s-icon">📐</span>
+          <div><h2>Zakat Ka Formula</h2></div>
+        </div>
+        <div class="section-body">
+          <div class="formula-box">
+            <div class="formula">Kul Maal × 2.5%</div>
+            <div class="formula-sub">= Tumhari Zakat</div>
+          </div>
+          <div class="step-list mt-10">
+            <div class="step-item">
+              <div class="step-num">1</div>
+              <div class="step-text"><strong>Sab jodo:</strong> Gold + Chandi + Cash + Bank + Udhar + Business Stock</div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">2</div>
+              <div class="step-text"><strong>Qarz minus karo:</strong> Jo tumhe kisi ko dena hai</div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">3</div>
+              <div class="step-text"><strong>Nisab check karo:</strong> Kya total 52.5 tola chandi ki value se zyada hai?</div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">4</div>
+              <div class="step-text"><strong>2.5% nikalo:</strong> Yahi tumhari Zakat hai</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXAMPLES -->
+      <div class="section-card mt-14">
+        <div class="section-header">
+          <span class="s-icon">💡</span>
+          <div><h2>Practical Examples</h2></div>
+        </div>
+        <div class="section-body">
+          <div class="example-card no">
+            <h4>❌ Example 1</h4>
+            <p>Kisi ke paas sirf <strong>6 tola gold</strong> hai — aur kuch nahi, na cash na chandi.</p>
+            <p class="result">🚫 Zakat NAHI lagegi — Gold nisab (7.5 tola) se kam hai.</p>
+          </div>
+          <div class="example-card yes">
+            <h4>✅ Example 2</h4>
+            <p>Kisi ke paas <strong>1 tola gold + 52.5 tola chandi ki value ka cash/bank/udhar</strong> bhi hai.</p>
+            <p class="result">✅ Zakat LAGEGI — Gold + Cash milake nisab poora ho gaya. Poore maal par 2.5% nikalna hoga.</p>
+          </div>
+          <div class="example-card yes">
+            <h4>✅ Example 3</h4>
+            <p>Kisi ke paas <strong>sirf cash/bank</strong> hai — gold/chandi kuch nahi — lekin amount 52.5 tola chandi ki value se zyada hai.</p>
+            <p class="result">✅ Zakat LAGEGI — Sirf cash par bhi lagti hai agar nisab poora ho.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- IMPORTANT NOTES -->
+      <div class="section-card mt-14">
+        <div class="section-header">
+          <span class="s-icon">⚠️</span>
+          <div><h2>Zaroori Baatein</h2></div>
+        </div>
+        <div class="section-body">
+          <div class="cat-item">
+            <div class="cat-icon green">📅</div>
+            <div class="cat-info"><h3>Haul (1 Saal)</h3><p>Nisab ke barabar maal par poora ek lunar/Hijri saal guzarna zaroori hai.</p></div>
+          </div>
+          <div class="cat-item">
+            <div class="cat-icon gold">💍</div>
+            <div class="cat-info"><h3>Pehni Hui Jewellery</h3><p>Ulema mein ikhtilaaf hai — احتياط (caution) ke liye nikalna behtar hai.</p></div>
+          </div>
+          <div class="cat-item">
+            <div class="cat-icon blue">🏠</div>
+            <div class="cat-info"><h3>Rehne Wala Ghar</h3><p>Apne rehne ka ghar aur daily use ki gaadi — in par <strong>zakat nahi lagti, inhe count mat karo</strong>.</p></div>
+          </div>
+          <div class="cat-item">
+            <div class="cat-icon red">🕌</div>
+            <div class="cat-info"><h3>Mufti Se Poochho</h3><p>Exact masail ke liye apne local aalim ya mufti se zaroor poochhein.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="small-note" style="padding:20px 16px;">
+        <div style="font-family:'Amiri',serif;font-size:18px;margin-bottom:8px;">اللّهُمَّ اجْعَلْهَا مَغْنَمًا وَلَا تَجْعَلْهَا مَغْرَمًا</div>
+        Aye Allah! Ise faydemand bana aur bojh na bana.
+      </div>
+    </div>
+
+    <!-- PAGE: CALCULATOR -->
+    <div class="page" id="page-calc">
+      <div class="section-card" style="margin-top:14px;">
+        <div class="section-header">
+          <span class="s-icon">🧮</span>
+          <div>
+            <h2>Zakat Calculator</h2>
+            <p>Apna maal enter karo — auto calculate hoga</p>
+          </div>
+        </div>
+        <div class="section-body">
+
+          <!-- GOLD -->
+          <label class="calc-label">🥇 Sona (Gold) — Tola mein</label>
+          <div class="input-row">
+            <input type="number" class="input-field" id="inp_gold_tola" placeholder="0" min="0" step="0.1" oninput="updateGoldValue()">
+            <div class="input-unit">Tola</div>
+            <button class="auto-fill-btn" onclick="convertGoldGram()">gram→tola</button>
+          </div>
+          <div id="goldGramInput" style="display:none;margin-bottom:14px;">
+            <label class="calc-label">Gold in Gram:</label>
+            <div class="input-row">
+              <input type="number" class="input-field" id="inp_gold_gram" placeholder="0" min="0" step="0.1" oninput="gramToTola()">
+              <div class="input-unit">Gram</div>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;" id="goldValueDisplay">Value: —</div>
+
+          <!-- SILVER -->
+          <label class="calc-label">🥈 Chandi (Silver) — Tola mein</label>
+          <div class="input-row">
+            <input type="number" class="input-field" id="inp_silver_tola" placeholder="0" min="0" step="0.1" oninput="updateSilverValue()">
+            <div class="input-unit">Tola</div>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;" id="silverValueDisplay">Value: —</div>
+
+          <div class="divider"></div>
+
+          <!-- CASH -->
+          <label class="calc-label">💵 Cash (Ghar mein) — ₹</label>
+          <div class="input-row">
+            <input type="number" class="input-field" id="inp_cash" placeholder="0" min="0">
+            <div class="input-unit">₹</div>
+          </div>
+
+          <!-- BANK -->
+          <label class="calc-label">🏦 Bank Balance — ₹</label>
+          <div class="input-row">
+            <input type="number" class="input-field" id="inp_bank" placeholder="0" min="0">
+            <div class="input-unit">₹</div>
+          </div>
+
+          <!-- UDHAR -->
+          <label class="calc-label">🤝 Udhar Diya Hua — ₹</label>
+          <div class="input-row">
+            <input type="number" class="input-field" id="inp_udhar" placeholder="0" min="0">
+            <div class="input-unit">₹</div>
+          </div>
+
+          <!-- BUSINESS -->
+          <label class="calc-label">🏪 Business Stock / Property (Sale ke liye) — ₹</label>
+          <div class="input-row">
+            <input type="number" class="input-field" id="inp_business" placeholder="0" min="0">
+            <div class="input-unit">₹</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- QARZ -->
+          <label class="calc-label">➖ Qarz (Jo tumhe dena hai) — ₹</label>
+          <div class="input-row">
+            <input type="number" class="input-field" id="inp_qarz" placeholder="0" min="0">
+            <div class="input-unit">₹</div>
+          </div>
+
+          <button class="calc-btn" onclick="calculateZakat()">
+            📿 Zakat Calculate Karo
+          </button>
+          <button class="reset-btn" onclick="resetCalc()">🔄 Reset</button>
+        </div>
+      </div>
+
+      <!-- RESULT -->
+      <div id="calcResult" style="margin:0 14px 14px;"></div>
+    </div>
+
+    <!-- PAGE: NISAB CHECKER -->
+    <div class="page" id="page-nisab">
+      <div class="section-card" style="margin-top:14px;">
+        <div class="section-header">
+          <span class="s-icon">✅</span>
+          <div>
+            <h2>Nisab Checker</h2>
+            <p>Pehle check karo — Zakat farz hai ya nahi</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Apni situation select karo:</p>
+
+          <div class="checker-card" id="chk1" onclick="selectChecker(1)">
+            <div class="ch-top">
+              <div class="ch-title">🥇 Sirf Sona hai</div>
+              <div class="ch-radio" id="chkr1"></div>
+            </div>
+            <div class="ch-body">Gold kitna tola hai? (chandi/cash kuch nahi)</div>
+            <div id="chk1_input" style="display:none;margin-top:10px;">
+              <input type="number" class="input-field" id="chk1_val" placeholder="Gold tola enter karo" min="0" step="0.1">
+            </div>
+          </div>
+
+          <div class="checker-card" id="chk2" onclick="selectChecker(2)">
+            <div class="ch-top">
+              <div class="ch-title">🥈 Sirf Chandi hai</div>
+              <div class="ch-radio" id="chkr2"></div>
+            </div>
+            <div class="ch-body">Silver kitna tola hai? (gold/cash kuch nahi)</div>
+            <div id="chk2_input" style="display:none;margin-top:10px;">
+              <input type="number" class="input-field" id="chk2_val" placeholder="Chandi tola enter karo" min="0" step="0.1">
+            </div>
+          </div>
+
+          <div class="checker-card" id="chk3" onclick="selectChecker(3)">
+            <div class="ch-top">
+              <div class="ch-title">💵 Sirf Cash / Bank hai</div>
+              <div class="ch-radio" id="chkr3"></div>
+            </div>
+            <div class="ch-body">Gold/chandi nahi — sirf cash ya bank balance hai</div>
+            <div id="chk3_input" style="display:none;margin-top:10px;">
+              <input type="number" class="input-field" id="chk3_val" placeholder="Total amount ₹ enter karo" min="0">
+            </div>
+          </div>
+
+          <div class="checker-card" id="chk4" onclick="selectChecker(4)">
+            <div class="ch-top">
+              <div class="ch-title">🔀 Mix hai (Gold + Cash, etc.)</div>
+              <div class="ch-radio" id="chkr4"></div>
+            </div>
+            <div class="ch-body">Multiple cheezein hain — Calculator use karo detailed check ke liye</div>
+          </div>
+
+          <button class="calc-btn mt-10" onclick="checkNisab()">✅ Check Karo</button>
+        </div>
+      </div>
+      <div id="nisabResult" style="margin:0 14px 14px;"></div>
+    </div>
+
+    <!-- PAGE: SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="section-card" style="margin-top:14px;">
+        <div class="section-header">
+          <span class="s-icon">⚙️</span>
+          <div><h2>Settings</h2></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-icon">🌙</span>
+            <div class="setting-text">
+              <h3>Dark Mode</h3>
+              <p>Aankhon ke liye aaram</p>
+            </div>
+          </div>
+          <button class="toggle" id="darkToggle" onclick="toggleTheme()"></button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-icon">📍</span>
+            <div class="setting-text">
+              <h3>Location</h3>
+              <p id="locationText">Rates fetch karne ke liye</p>
+            </div>
+          </div>
+          <button class="btn-icon" style="background:var(--green-pale);color:var(--green);width:auto;padding:6px 14px;border-radius:10px;font-size:12px;font-weight:700;" onclick="fetchRates()">🔄 Refresh</button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-icon">🥇</span>
+            <div class="setting-text">
+              <h3>Gold Rate (Manual)</h3>
+              <p>Auto fetch na ho to yahan daalo</p>
+            </div>
+          </div>
+          <input type="number" class="select-field" id="manualGold" placeholder="₹/gram" style="width:100px;" oninput="applyManualRates()">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-icon">🥈</span>
+            <div class="setting-text">
+              <h3>Silver Rate (Manual)</h3>
+              <p>Per gram rate daalo</p>
+            </div>
+          </div>
+          <input type="number" class="select-field" id="manualSilver" placeholder="₹/gram" style="width:100px;" oninput="applyManualRates()">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-icon">ℹ️</span>
+            <div class="setting-text">
+              <h3>About</h3>
+              <p>Zakat Guide v1.0 — March 2026</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="small-note" style="margin-top:14px;">
+        📌 Rates daily change hoti hain. Hamesha usi din ka rate use karo.<br>
+        Exact masail ke liye apne local Aalim ya Mufti se zaroor poochhein.
+      </p>
+    </div>
+
+  </div><!-- end scroll-area -->
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <button class="nav-item active" onclick="showPage('guide',this)">
+      <span class="nav-icon">📖</span>
+      <span class="nav-label">Guide</span>
+    </button>
+    <button class="nav-item" onclick="showPage('calc',this)">
+      <span class="nav-icon">🧮</span>
+      <span class="nav-label">Calculator</span>
+    </button>
+    <button class="nav-item" onclick="showPage('nisab',this)">
+      <span class="nav-icon">✅</span>
+      <span class="nav-label">Nisab</span>
+    </button>
+    <button class="nav-item" onclick="showPage('settings',this)">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">Settings</span>
+    </button>
+  </div>
+
+</div>
+
+<script>
+// ======== STATE ========
+let goldRate = 14940;   // per gram 22K
+let silverRate = 65;    // per gram
+let ratesLoaded = false;
+
+const GOLD_NISAB_GRAM = 87.48;
+const SILVER_NISAB_GRAM = 612.36;
+const TOLA = 11.664;
+
+// ======== RATES ========
+async function fetchRates() {
+  try {
+    updateRateUI('goldRate', '<span class="loading-spinner"></span>');
+    updateRateUI('silverRate', '<span class="loading-spinner"></span>');
+    updateRateUI('nisabRate', '<span class="loading-spinner"></span>');
+
+    // Use GoldAPI free endpoint (no key needed for basic)
+    // Fallback to known India rates if API fails
+    const res = await fetch('https://api.metals.live/v1/spot/gold,silver', {
+      signal: AbortSignal.timeout(5000)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      // metals.live returns USD/troy oz
+      const usdGold = data[0]?.gold || data?.gold || 1900;
+      const usdSilver = data[1]?.silver || data?.silver || 23;
+
+      // USD to INR approx
+      const usdInr = 83.5;
+      const troyOzToGram = 31.1035;
+
+      goldRate = Math.round((usdGold / troyOzToGram) * usdInr * 0.9167); // 22K
+      silverRate = Math.round((usdSilver / troyOzToGram) * usdInr);
+    }
+  } catch(e) {
+    // Keep default rates
+  }
+
+  const nisabValue = Math.round(silverRate * SILVER_NISAB_GRAM);
+
+  updateRateUI('goldRate', `₹${goldRate.toLocaleString('en-IN')}/g`);
+  updateRateUI('silverRate', `₹${silverRate.toLocaleString('en-IN')}/g`);
+  updateRateUI('nisabRate', `₹${nisabValue.toLocaleString('en-IN')}`);
+
+  document.getElementById('goldChip').classList.remove('loading');
+  document.getElementById('silverChip').classList.remove('loading');
+  document.getElementById('nisabChip').classList.remove('loading');
+
+  // Update guide table
+  document.getElementById('goldNisabVal').textContent = `~₹${Math.round(goldRate * GOLD_NISAB_GRAM).toLocaleString('en-IN')}`;
+  document.getElementById('silverNisabVal').textContent = `~₹${nisabValue.toLocaleString('en-IN')}`;
+
+  ratesLoaded = true;
+  updateGoldValue();
+  updateSilverValue();
+}
+
+function updateRateUI(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html;
+}
+
+function applyManualRates() {
+  const mg = parseFloat(document.getElementById('manualGold').value);
+  const ms = parseFloat(document.getElementById('manualSilver').value);
+  if (mg > 0) goldRate = mg;
+  if (ms > 0) silverRate = ms;
+  updateRateUI('goldRate', `₹${goldRate.toLocaleString('en-IN')}/g`);
+  updateRateUI('silverRate', `₹${silverRate.toLocaleString('en-IN')}/g`);
+  const nisabValue = Math.round(silverRate * SILVER_NISAB_GRAM);
+  updateRateUI('nisabRate', `₹${nisabValue.toLocaleString('en-IN')}`);
+  document.getElementById('silverNisabVal').textContent = `~₹${nisabValue.toLocaleString('en-IN')}`;
+  document.getElementById('goldNisabVal').textContent = `~₹${Math.round(goldRate * GOLD_NISAB_GRAM).toLocaleString('en-IN')}`;
+  updateGoldValue();
+  updateSilverValue();
+}
+
+// ======== PAGES ========
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  document.getElementById('scrollArea').scrollTop = 0;
+}
+
+// ======== THEME ========
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.querySelector('.header-actions .btn-icon').textContent = isDark ? '🌙' : '☀️';
+  const toggle = document.getElementById('darkToggle');
+  if (isDark) toggle.classList.remove('on'); else toggle.classList.add('on');
+  try { localStorage.setItem('zakat_theme', isDark ? 'light' : 'dark'); } catch(e){}
+}
+
+// ======== CALCULATOR ========
+function updateGoldValue() {
+  const tola = parseFloat(document.getElementById('inp_gold_tola').value) || 0;
+  const gram = tola * TOLA;
+  const val = Math.round(gram * goldRate);
+  document.getElementById('goldValueDisplay').textContent = tola > 0 ? `Value: ~₹${val.toLocaleString('en-IN')} (${gram.toFixed(2)}g)` : 'Value: —';
+}
+
+function updateSilverValue() {
+  const tola = parseFloat(document.getElementById('inp_silver_tola').value) || 0;
+  const gram = tola * TOLA;
+  const val = Math.round(gram * silverRate);
+  document.getElementById('silverValueDisplay').textContent = tola > 0 ? `Value: ~₹${val.toLocaleString('en-IN')} (${gram.toFixed(2)}g)` : 'Value: —';
+}
+
+function convertGoldGram() {
+  const d = document.getElementById('goldGramInput');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function gramToTola() {
+  const gram = parseFloat(document.getElementById('inp_gold_gram').value) || 0;
+  const tola = gram / TOLA;
+  document.getElementById('inp_gold_tola').value = tola.toFixed(3);
+  updateGoldValue();
+}
+
+function calculateZakat() {
+  const goldTola = parseFloat(document.getElementById('inp_gold_tola').value) || 0;
+  const silverTola = parseFloat(document.getElementById('inp_silver_tola').value) || 0;
+  const cash = parseFloat(document.getElementById('inp_cash').value) || 0;
+  const bank = parseFloat(document.getElementById('inp_bank').value) || 0;
+  const udhar = parseFloat(document.getElementById('inp_udhar').value) || 0;
+  const business = parseFloat(document.getElementById('inp_business').value) || 0;
+  const qarz = parseFloat(document.getElementById('inp_qarz').value) || 0;
+
+  const goldGram = goldTola * TOLA;
+  const silverGram = silverTola * TOLA;
+
+  const goldValue = Math.round(goldGram * goldRate);
+  const silverValue = Math.round(silverGram * silverRate);
+  const cashTotal = cash + bank + udhar + business;
+
+  const totalBeforeQarz = goldValue + silverValue + cashTotal;
+  const totalAfterQarz = Math.max(0, totalBeforeQarz - qarz);
+
+  const nisabValue = Math.round(silverRate * SILVER_NISAB_GRAM);
+  const isFarz = totalAfterQarz >= nisabValue;
+  const zakat = isFarz ? Math.round(totalAfterQarz * 0.025) : 0;
+
+  let html = '';
+  if (isFarz) {
+    html = `<div class="result-card farz">
+      <div class="r-emoji">✅</div>
+      <div class="r-title">Zakat Farz Hai!</div>
+      <div class="r-amount">₹${zakat.toLocaleString('en-IN')}</div>
+      <div class="r-sub">Tumhari Zakat ki Raqam (approx.)</div>
+      <div class="r-breakdown">
+        ${goldValue > 0 ? `<div class="row"><span>🥇 Gold Value</span><span>₹${goldValue.toLocaleString('en-IN')}</span></div>` : ''}
+        ${silverValue > 0 ? `<div class="row"><span>🥈 Silver Value</span><span>₹${silverValue.toLocaleString('en-IN')}</span></div>` : ''}
+        ${cash > 0 ? `<div class="row"><span>💵 Cash</span><span>₹${cash.toLocaleString('en-IN')}</span></div>` : ''}
+        ${bank > 0 ? `<div class="row"><span>🏦 Bank</span><span>₹${bank.toLocaleString('en-IN')}</span></div>` : ''}
+        ${udhar > 0 ? `<div class="row"><span>🤝 Udhar</span><span>₹${udhar.toLocaleString('en-IN')}</span></div>` : ''}
+        ${business > 0 ? `<div class="row"><span>🏪 Business</span><span>₹${business.toLocaleString('en-IN')}</span></div>` : ''}
+        ${qarz > 0 ? `<div class="row"><span>➖ Qarz (Minus)</span><span>-₹${qarz.toLocaleString('en-IN')}</span></div>` : ''}
+        <div class="row"><span>💰 Kul Maal</span><span>₹${totalAfterQarz.toLocaleString('en-IN')}</span></div>
+        <div class="row"><span><strong>📿 Zakat (2.5%)</strong></span><span><strong>₹${zakat.toLocaleString('en-IN')}</strong></span></div>
+      </div>
+      <span class="r-arabic">جَزَاكَ اللَّهُ خَيْرًا</span>
+    </div>`;
+  } else {
+    const diff = nisabValue - totalAfterQarz;
+    html = `<div class="result-card nahi">
+      <div class="r-emoji">ℹ️</div>
+      <div class="r-title">Zakat Farz Nahi</div>
+      <div class="r-sub" style="margin-top:8px;font-size:13px;">Tumhara total maal <strong>₹${totalAfterQarz.toLocaleString('en-IN')}</strong> hai</div>
+      <div class="r-sub">Nisab limit: <strong>₹${nisabValue.toLocaleString('en-IN')}</strong></div>
+      <div class="r-sub" style="margin-top:6px;">Nisab tak ₹${diff.toLocaleString('en-IN')} aur chahiye</div>
+    </div>`;
+  }
+
+  document.getElementById('calcResult').innerHTML = html;
+  document.getElementById('calcResult').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function resetCalc() {
+  ['inp_gold_tola','inp_gold_gram','inp_silver_tola','inp_cash','inp_bank','inp_udhar','inp_business','inp_qarz'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('goldValueDisplay').textContent = 'Value: —';
+  document.getElementById('silverValueDisplay').textContent = 'Value: —';
+  document.getElementById('calcResult').innerHTML = '';
+  document.getElementById('goldGramInput').style.display = 'none';
+}
+
+// ======== NISAB CHECKER ========
+let selectedChecker = 0;
+function selectChecker(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById('chk'+i).classList.remove('selected');
+    document.getElementById('chkr'+i).innerHTML = '';
+    const inp = document.getElementById('chk'+i+'_input');
+    if (inp) inp.style.display = 'none';
+  });
+  selectedChecker = n;
+  document.getElementById('chk'+n).classList.add('selected');
+  document.getElementById('chkr'+n).innerHTML = '✓';
+  document.getElementById('chkr'+n).style.color = '#fff';
+  const inp = document.getElementById('chk'+n+'_input');
+  if (inp) inp.style.display = 'block';
+  document.getElementById('nisabResult').innerHTML = '';
+}
+
+function checkNisab() {
+  const nisabValue = silverRate * SILVER_NISAB_GRAM;
+  let isFarz = false, msg = '', detail = '';
+
+  if (selectedChecker === 1) {
+    const tola = parseFloat(document.getElementById('chk1_val').value) || 0;
+    isFarz = tola >= 7.5;
+    msg = isFarz ? 'Zakat Farz Hai!' : 'Zakat Farz Nahi';
+    detail = isFarz ? `Tumhara gold ${tola} tola hai — nisab (7.5 tola) se zyada hai.` : `Tumhara gold ${tola} tola hai — nisab ke liye 7.5 tola chahiye. ${(7.5-tola).toFixed(2)} tola aur chahiye.`;
+  } else if (selectedChecker === 2) {
+    const tola = parseFloat(document.getElementById('chk2_val').value) || 0;
+    isFarz = tola >= 52.5;
+    msg = isFarz ? 'Zakat Farz Hai!' : 'Zakat Farz Nahi';
+    detail = isFarz ? `Tumhari chandi ${tola} tola hai — nisab (52.5 tola) poora hai.` : `Tumhari chandi ${tola} tola hai — nisab ke liye 52.5 tola chahiye. ${(52.5-tola).toFixed(1)} tola aur chahiye.`;
+  } else if (selectedChecker === 3) {
+    const amt = parseFloat(document.getElementById('chk3_val').value) || 0;
+    isFarz = amt >= nisabValue;
+    msg = isFarz ? 'Zakat Farz Hai!' : 'Zakat Farz Nahi';
+    detail = isFarz ? `Tumhara cash ₹${amt.toLocaleString('en-IN')} hai — nisab (₹${Math.round(nisabValue).toLocaleString('en-IN')}) se zyada hai.` : `Tumhara cash ₹${amt.toLocaleString('en-IN')} hai. Nisab ke liye ₹${Math.round(nisabValue).toLocaleString('en-IN')} chahiye. ₹${Math.round(nisabValue-amt).toLocaleString('en-IN')} aur chahiye.`;
+  } else if (selectedChecker === 4) {
+    document.getElementById('nisabResult').innerHTML = `<div class="nisab-result" style="background:var(--green-pale);border:2px solid var(--green);">
+      <h3 style="color:var(--green);">Calculator Use Karo</h3>
+      <p>Mix maal ke liye detailed Calculator mein jaao aur sab enter karo — wahan exact result milega.</p>
+    </div>`;
+    showPage('calc', document.querySelectorAll('.nav-item')[1]);
+    return;
+  } else {
+    alert('Pehle ek option select karo!');
+    return;
+  }
+
+  document.getElementById('nisabResult').innerHTML = `
+    <div class="nisab-result ${isFarz ? 'farz' : 'nahi'}">
+      <h3>${isFarz ? '✅ ' : 'ℹ️ '}${msg}</h3>
+      <p style="margin-top:6px;">${detail}</p>
+      ${isFarz ? '<p style="margin-top:8px;font-weight:700;">Calculator mein jaake exact amount nikalo 👆</p>' : ''}
+    </div>`;
+  document.getElementById('nisabResult').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// ======== INIT ========
+(function init() {
+  try {
+    const saved = localStorage.getItem('zakat_theme');
+    if (saved === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.querySelector('.header-actions .btn-icon').textContent = '☀️';
+      document.getElementById('darkToggle').classList.add('on');
+    }
+  } catch(e) {}
+  fetchRates();
+})();
+</script>
+</body>
+</html>

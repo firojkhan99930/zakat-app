@@ -34,6 +34,29 @@ link.rel = 'manifest';
 link.href = manifestURL;
 document.head.appendChild(link);
 </script>
+<script>
+// ======== SERVICE WORKER — Via inline script trick ========
+// Injects a <script id="sw-src"> tag then registers it via a Blob with correct MIME
+// Works on GitHub Pages without a separate sw.js file
+(function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+
+  // Get SW source from the hidden script tag
+  const swSrc = document.getElementById('sw-src');
+  if (!swSrc) return;
+
+  const swCode = swSrc.textContent;
+  const swBlob = new Blob([swCode], { type: 'text/javascript' });
+  const swURL  = URL.createObjectURL(swBlob);
+
+  navigator.serviceWorker.register(swURL)
+    .then(reg => {
+      console.log('SW ok:', reg.scope);
+      URL.revokeObjectURL(swURL);
+    })
+    .catch(err => console.warn('SW skipped:', err.message));
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -162,6 +185,23 @@ document.head.appendChild(link);
   .unit-toggle-btn { padding:7px 13px; font-size:12px; font-weight:800; font-family:'Nunito',sans-serif; border:none; cursor:pointer; background:var(--input-bg); color:var(--text-muted); transition:background 0.2s, color 0.2s; }
   .unit-toggle-btn.active { background:var(--green); color:#fff; }
   .gram-section { display:none; margin-top:-8px; margin-bottom:14px; }
+
+  /* PULL TO REFRESH SPIN */
+  @keyframes ptrSpin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* INSTALL BUTTON */
+  #installBtn {
+    background: var(--gold-pale, #fff8e1) !important;
+    color: var(--gold) !important;
+    animation: pulseBadge 2s ease-in-out infinite;
+  }
+  @keyframes pulseBadge {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(212,160,23,0.4); }
+    50%       { box-shadow: 0 0 0 6px rgba(212,160,23,0); }
+  }
 
   /* SCROLL AREA */
   .scroll-area { flex:1; overflow-y:auto; overflow-x:hidden; padding:0 0 80px; }
@@ -370,7 +410,80 @@ document.head.appendChild(link);
 </style>
 </head>
 <body>
-<div class="app">
+<!-- PULL TO REFRESH INDICATOR -->
+  <div id="ptrIndicator" style="
+    position:fixed; top:0; left:0; right:0; z-index:999;
+    display:flex; align-items:center; justify-content:center;
+    height:0; overflow:hidden; background:var(--green);
+    transition:height 0.2s ease; color:#fff; font-size:13px; font-weight:700;
+    gap:8px;
+  ">
+    <span id="ptrSpinner" style="font-size:20px; display:inline-block; transition:transform 0.3s;">↓</span>
+    <span id="ptrText">Neeche khicho refresh ke liye</span>
+  </div>
+
+  <div class="app">
+
+  <!-- LANGUAGE / TRANSLATE PANEL -->
+  <div class="modal-overlay" id="translateModal" style="display:none;" onclick="closeTranslateOnBg(event)">
+    <div class="modal-sheet" style="padding-bottom:30px;">
+      <div class="modal-handle"></div>
+      <div class="modal-title" style="justify-content:center;font-size:17px;margin-bottom:4px;">🌐 Language / Bhasha</div>
+      <div style="font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:18px;">Apni pasand ki bhasha chunein</div>
+
+      <!-- Language Options -->
+      <div style="display:flex;flex-direction:column;gap:8px;" id="langList">
+
+        <button id="langHi" onclick="setLanguage('hi','हिंदी')"
+          style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid var(--green);border-radius:12px;background:var(--green-pale);cursor:pointer;font-family:'Nunito',sans-serif;text-align:left;width:100%;">
+          <span style="font-size:22px;flex-shrink:0;">🇮🇳</span>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:800;color:var(--green);">हिंदी (Hindi)</div>
+            <div style="font-size:11px;color:var(--text-muted);">Default — Original language</div>
+          </div>
+          <span id="langHiCheck" style="font-size:16px;flex-shrink:0;">✅</span>
+        </button>
+
+        <button id="langEn" onclick="setLanguage('en','English')"
+          style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid var(--border);border-radius:12px;background:var(--input-bg);cursor:pointer;font-family:'Nunito',sans-serif;text-align:left;width:100%;">
+          <span style="font-size:22px;flex-shrink:0;">🇬🇧</span>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:800;color:var(--text);">English</div>
+            <div style="font-size:11px;color:var(--text-muted);">Translate entire app to English</div>
+          </div>
+          <span id="langEnCheck" style="font-size:16px;flex-shrink:0;display:none;">✅</span>
+        </button>
+
+        <button id="langUr" onclick="setLanguage('ur','اردو')"
+          style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid var(--border);border-radius:12px;background:var(--input-bg);cursor:pointer;font-family:'Nunito',sans-serif;text-align:left;width:100%;">
+          <span style="font-size:22px;flex-shrink:0;">🇵🇰</span>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:800;color:var(--text);">اردو (Urdu)</div>
+            <div style="font-size:11px;color:var(--text-muted);">پورے ایپ کو اردو میں ترجمہ کریں</div>
+          </div>
+          <span id="langUrCheck" style="font-size:16px;flex-shrink:0;display:none;">✅</span>
+        </button>
+
+        <button id="langPa" onclick="setLanguage('pa','ਪੰਜਾਬੀ')"
+          style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid var(--border);border-radius:12px;background:var(--input-bg);cursor:pointer;font-family:'Nunito',sans-serif;text-align:left;width:100%;">
+          <span style="font-size:22px;flex-shrink:0;">🏵️</span>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:800;color:var(--text);">ਪੰਜਾਬੀ (Punjabi)</div>
+            <div style="font-size:11px;color:var(--text-muted);">ਪੂਰੀ ਐਪ ਪੰਜਾਬੀ ਵਿੱਚ ਅਨੁਵਾਦ ਕਰੋ</div>
+          </div>
+          <span id="langPaCheck" style="font-size:16px;flex-shrink:0;display:none;">✅</span>
+        </button>
+
+      </div>
+
+      <div style="margin-top:12px;font-size:11px;color:var(--text-muted);text-align:center;background:var(--input-bg);border-radius:10px;padding:8px 12px;line-height:1.7;">
+        ⚡ Google Translate se powered — Internet zaruri<br>
+        Hindi select karne pe original content wapas aata hai
+      </div>
+
+      <button class="modal-btn-secondary" onclick="closeTranslatePanel()" style="width:100%;margin-top:12px;">Bandh Karo</button>
+    </div>
+  </div>
 
   <!-- HEADER -->
   <div class="header">
@@ -382,6 +495,8 @@ document.head.appendChild(link);
       </div>
     </div>
     <div class="header-actions">
+      <button class="btn-icon" id="installBtn" onclick="installApp()" title="App Install Karo" style="display:none;">📲</button>
+      <button class="btn-icon" id="translateBtn" onclick="showTranslatePanel()" title="Language / ভাষা / زبان">🌐</button>
       <button class="btn-icon" onclick="toggleTheme()" title="Theme">🌙</button>
     </div>
   </div>
@@ -972,7 +1087,10 @@ function initApp() {
     const saved = localStorage.getItem('zakat_theme');
     if (saved === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
-      document.querySelector('.header-actions .btn-icon').textContent = '☀️';
+      // Update theme button
+      const tBtns = document.querySelectorAll('.header-actions .btn-icon');
+      const tBtn = tBtns[tBtns.length - 1];
+      if (tBtn) tBtn.textContent = '☀️';
       document.getElementById('darkToggle').classList.add('on');
     }
   } catch(e) {}
@@ -1183,7 +1301,10 @@ function toggleTheme() {
   const html = document.documentElement;
   const isDark = html.getAttribute('data-theme') === 'dark';
   html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  document.querySelector('.header-actions .btn-icon').textContent = isDark ? '🌙' : '☀️';
+  // Update only the theme button (last btn-icon in header)
+  const themeBtns = document.querySelectorAll('.header-actions .btn-icon');
+  const themeBtn = themeBtns[themeBtns.length - 1];
+  if (themeBtn) themeBtn.textContent = isDark ? '🌙' : '☀️';
   const toggle = document.getElementById('darkToggle');
   if (isDark) toggle.classList.remove('on'); else toggle.classList.add('on');
   try { localStorage.setItem('zakat_theme', isDark ? 'light' : 'dark'); } catch(e) {}
@@ -1446,8 +1567,298 @@ function populateSettingsFields() {
   } catch(e) {}
 }
 
+// ======== LANGUAGE / TRANSLATE — Cookie-based Google Translate ========
+// Works reliably on GitHub Pages — sets googtrans cookie then reloads
+
+const LANGS = {
+  'hi': { label: 'हिंदी',    check: 'langHiCheck', btn: 'langHi' },
+  'en': { label: 'English',   check: 'langEnCheck', btn: 'langEn' },
+  'ur': { label: 'اردو',      check: 'langUrCheck', btn: 'langUr' },
+  'pa': { label: 'ਪੰਜਾਬੀ',   check: 'langPaCheck', btn: 'langPa' },
+};
+
+let currentLang = localStorage.getItem('zakat_lang') || 'hi';
+
+function showTranslatePanel() {
+  document.getElementById('translateModal').style.display = 'flex';
+  updateLangUI(currentLang);
+}
+function closeTranslatePanel() {
+  document.getElementById('translateModal').style.display = 'none';
+}
+function closeTranslateOnBg(e) {
+  if (e.target === document.getElementById('translateModal')) closeTranslatePanel();
+}
+
+function updateLangUI(lang) {
+  Object.keys(LANGS).forEach(code => {
+    const l = LANGS[code];
+    const check = document.getElementById(l.check);
+    const btn   = document.getElementById(l.btn);
+    if (!check || !btn) return;
+    const active = code === lang;
+    check.style.display   = active ? 'inline' : 'none';
+    btn.style.borderColor = active ? 'var(--green)' : 'var(--border)';
+    btn.style.background  = active ? 'var(--green-pale)' : 'var(--input-bg)';
+  });
+}
+
+function setLanguage(lang, label) {
+  closeTranslatePanel();
+
+  if (lang === currentLang) return;     // already selected
+
+  try { localStorage.setItem('zakat_lang', lang); } catch(e) {}
+  currentLang = lang;
+
+  if (lang === 'hi') {
+    // Remove googtrans cookie → reload → original Hindi
+    eraseCookie('googtrans');
+    showToast('हिंदी में वापस आ रहे हैं... ⏳');
+    setTimeout(() => window.location.reload(), 600);
+    return;
+  }
+
+  // Set Google Translate cookie: /source/target
+  setCookie('googtrans', '/hi/' + lang, 1);
+  setCookie('googtrans', '/hi/' + lang, 1, location.hostname);
+
+  showToast(label + ' में translate हो रहा है... ⏳');
+
+  // Load Google Translate widget (it reads the cookie automatically)
+  loadGTWidget(lang);
+}
+
+function loadGTWidget(lang) {
+  // Remove old widget if any
+  ['gt-widget', 'gt-script'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  });
+
+  // Hidden container
+  const wrap = document.createElement('div');
+  wrap.id = 'gt-widget';
+  wrap.style.cssText = 'position:fixed;bottom:-100px;left:0;opacity:0;pointer-events:none;';
+  wrap.innerHTML = '<div id="google_translate_element"></div>';
+  document.body.appendChild(wrap);
+
+  window.googleTranslateElementInit = function() {
+    try {
+      new window.google.translate.TranslateElement({
+        pageLanguage: 'hi',
+        includedLanguages: 'en,ur,pa,hi',
+        autoDisplay: false,
+      }, 'google_translate_element');
+
+      // Wait for widget, then trigger via combo select
+      let tries = 0;
+      const poll = setInterval(() => {
+        const sel = document.querySelector('.goog-te-combo');
+        if (sel) {
+          clearInterval(poll);
+          sel.value = lang;
+          sel.dispatchEvent(new Event('change'));
+          showToast('✅ ' + LANGS[lang].label + ' mein translate ho gaya!');
+        } else if (++tries > 20) {
+          clearInterval(poll);
+          // Fallback: just reload — cookie is set, GT will pick it up
+          window.location.reload();
+        }
+      }, 300);
+    } catch(e) {
+      window.location.reload();
+    }
+  };
+
+  const script = document.createElement('script');
+  script.id  = 'gt-script';
+  script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+  document.head.appendChild(script);
+}
+
+// Cookie helpers
+function setCookie(name, value, days, domain) {
+  const exp = new Date(Date.now() + days * 864e5).toUTCString();
+  let cookie = name + '=' + value + '; expires=' + exp + '; path=/';
+  if (domain) cookie += '; domain=' + domain;
+  document.cookie = cookie;
+}
+function eraseCookie(name) {
+  document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+  document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + location.hostname;
+}
+
+// Toast
+function showToast(msg) {
+  let t = document.getElementById('translateToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'translateToast';
+    t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.3s;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
+// On load — if lang was saved, apply GT widget
+(function restoreLang() {
+  const saved = localStorage.getItem('zakat_lang') || 'hi';
+  currentLang = saved;
+  if (saved !== 'hi') {
+    // Ensure cookie is set
+    setCookie('googtrans', '/hi/' + saved, 1);
+    setTimeout(() => loadGTWidget(saved), 1200);
+  }
+})();
+
+// ======== PWA INSTALL PROMPT ========// ======== PWA INSTALL PROMPT ========
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Show install button
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'none';
+});
+
+function installApp() {
+  if (!deferredInstallPrompt) {
+    // Already installed or not supported
+    alert('App pehle se install hai ya aapka browser install support nahi karta.');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then((result) => {
+    if (result.outcome === 'accepted') {
+      console.log('App installed');
+    }
+    deferredInstallPrompt = null;
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'none';
+  });
+}
+
+// ======== PULL TO REFRESH ========
+(function initPullToRefresh() {
+  let startY = 0;
+  let isPulling = false;
+  let pullDistance = 0;
+  const THRESHOLD = 80;   // px required to trigger refresh
+  const MAX_PULL = 120;   // max pull distance shown
+
+  const indicator = document.getElementById('ptrIndicator');
+  const spinner   = document.getElementById('ptrSpinner');
+  const ptrText   = document.getElementById('ptrText');
+
+  function canPull() {
+    // Only pull when scrolled to very top
+    const scrollArea = document.getElementById('scrollArea');
+    return scrollArea ? scrollArea.scrollTop <= 2 : window.scrollY <= 2;
+  }
+
+  document.addEventListener('touchstart', (e) => {
+    if (!canPull()) return;
+    startY = e.touches[0].clientY;
+    isPulling = true;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!isPulling) return;
+    const currentY = e.touches[0].clientY;
+    pullDistance = Math.min(currentY - startY, MAX_PULL);
+
+    if (pullDistance <= 0) {
+      isPulling = false;
+      return;
+    }
+
+    // Show indicator
+    const height = Math.min(pullDistance * 0.6, 50);
+    indicator.style.height = height + 'px';
+
+    // Rotate arrow as user pulls
+    const rotation = Math.min((pullDistance / THRESHOLD) * 180, 180);
+    spinner.style.transform = `rotate(${rotation}deg)`;
+
+    if (pullDistance >= THRESHOLD) {
+      ptrText.textContent = 'Chhodo — refresh hoga!';
+      spinner.textContent = '↻';
+    } else {
+      ptrText.textContent = 'Neeche khicho refresh ke liye';
+      spinner.textContent = '↓';
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!isPulling) return;
+    isPulling = false;
+
+    if (pullDistance >= THRESHOLD) {
+      // Trigger refresh
+      indicator.style.height = '50px';
+      spinner.textContent = '⟳';
+      ptrText.textContent = 'Refresh ho raha hai...';
+      spinner.style.animation = 'ptrSpin 0.8s linear infinite';
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 800);
+    } else {
+      // Reset
+      indicator.style.height = '0';
+      spinner.style.transform = 'rotate(0deg)';
+      spinner.textContent = '↓';
+    }
+    pullDistance = 0;
+  });
+})();
+
 // ======== INIT ========
 initApp();
+</script>
+
+<!-- SW Source — hidden, used by registerSW() above -->
+<script id="sw-src" type="text/sw-source">
+  const CACHE = 'zakat-v3';
+
+  self.addEventListener('install', e => {
+    self.skipWaiting();
+  });
+
+  self.addEventListener('activate', e => {
+    e.waitUntil(
+      caches.keys().then(keys =>
+        Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      )
+    );
+    self.clients.claim();
+  });
+
+  self.addEventListener('fetch', e => {
+    if (e.request.method !== 'GET') return;
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          if (res && res.status === 200) {
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+  });
 </script>
 </body>
 </html>
